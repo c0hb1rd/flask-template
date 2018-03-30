@@ -33,19 +33,7 @@ project = [{
             'type': 'file',
             'name': '__init__.py'
         },
-        blueprint("index"),
-    ]
-}]
-
-socket_project = [{
-    'type': 'dir',
-    'name': 'socket_blurprint',
-    'children': [
-        {
-            'type': 'file',
-            'name': '__init__.py'
-        },
-        blueprint("common")
+        # blueprint("index"),
     ]
 }]
 

@@ -17,8 +17,11 @@ def random_password():
     return format_md5(str(seed))
 
 
-def now():
-    return int(''.join(str(time.time()).split('.'))[:10])
+def now(stamp=True, format_type="%Y-%m-%d %H:%M:%S"):
+    if stamp:
+        return int(''.join(str(time.time()).split('.'))[:13])
+
+    return time.strftime(format_type)
 
 
 def base64_decode_dict(obj):

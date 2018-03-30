@@ -2,12 +2,10 @@ import json
 
 from flask import request, redirect, session, jsonify
 from flask.views import View
-from core.dbconnector.conditions import IsCondition
 
 from core.dbconnector import DBResult
 
-from config import GAP, GET, POST
-from core.functions import now
+from config import GAP, GET, POST, PUT, DELETE, METHOD_ALL, CROSS_ADDR
 
 
 def capture_error(func):
@@ -36,7 +34,7 @@ def capture_log(func):
 
 def alter_permission(*args, **options):
     ret = jsonify({'result': 'permission', 'info': 'Not Permission'})
-    ret.headers['Access-Control-Allow-Origin'] = 'http://localhost:9999'
+    ret.headers['Access-Control-Allow-Origin'] = CROSS_ADDR
     ret.headers['Access-Control-Allow-Methods'] = '*'
     ret.headers['Access-Control-Allow-Headers'] = 'x-requested-with,content-type'
     ret.headers['Access-Control-Allow-Credentials'] = 'true'
@@ -65,14 +63,15 @@ class __SimpleView(View):
     redirect = redirect
     request = request
 
-    @capture_log
-    @capture_error
-    @capture_error
+    # @capture_log # 捕获日志
+    # @capture_error # 捕获异常
     def dispatch_request(self, *args, **kwargs):
 
         METHOD_META = {
             'GET': self.get,
-            'POST': self.post
+            'POST': self.post,
+            'PUT': self.put,
+            'DELETE': self.delete
         }
 
         if request.method in self.methods:
@@ -84,6 +83,12 @@ class __SimpleView(View):
         pass
 
     def post(self, *args, **kwargs):
+        pass
+
+    def put(self, *args, **kwargs):
+        pass
+
+    def delete(self, *args, **kwargs):
         pass
 
     def get_json(self):
@@ -114,7 +119,7 @@ class __SimpleView(View):
             ret.update(data)
 
         ret = jsonify(ret)
-        ret.headers['Access-Control-Allow-Origin'] = 'http://localhost:9999'
+        ret.headers['Access-Control-Allow-Origin'] = CROSS_ADDR
         ret.headers['Access-Control-Allow-Methods'] = '*'
         ret.headers['Access-Control-Allow-Headers'] = 'x-requested-with,content-type'
         ret.headers['Access-Control-Allow-Credentials'] = 'true'
@@ -154,8 +159,26 @@ class PostView(__SimpleView):
         raise NotImplemented
 
 
+class PutView(__SimpleView):
+    methods = PUT
+
+    def put(self, *args, **kwargs):
+        raise NotImplementedError
+
+
+class DelView(__SimpleView):
+    methods = DELETE
+
+    def delete(self, *args, **kwargs):
+        raise NotImplementedError
+
+
 class GAPView(GetView, PostView):
     methods = GAP
+
+
+class RESTFulView(GetView, PutView, PostView, DelView):
+    methods = METHOD_ALL
 
 
 class SessionGetView(GetView):
@@ -174,3 +197,9 @@ class SessionGAPView(GAPView):
     @check_session
     def dispatch_request(self, *args, **kwargs):
         return super(SessionGAPView, self).dispatch_request(*args, **kwargs)
+
+
+class SessionRESTFulView(RESTFulView):
+    @check_session
+    def dispatch_request(self, *args, **kwargs):
+        return super(SessionRESTFulView, self).dispatch_request(*args, **kwargs)

@@ -2,7 +2,10 @@ import os
 
 GET = ['GET']
 POST = ['POST']
+DELETE = ['DELETE']
+PUT = ['PUT']
 GAP = GET + POST
+METHOD_ALL = GAP + PUT + DELETE
 
 
 SYS_NAME = ""
@@ -23,4 +26,6 @@ THREADED = True
 HOST = '0.0.0.0'
 PORT = 8088
 DOMAIN = 'http://{host}:{port}'.format(host=HOST, port=PORT)
+
+CROSS_ADDR = 'http://localhost:9999'
 
