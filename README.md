@@ -3,8 +3,8 @@
 [![Flask 0.11.1](https://img.shields.io/badge/flask-0.11.1-yellow.svg)](https://github.com/pallets/flask)
 
 ## 目录
-[一、结构](一结构)
-[二、API文档](二API文档)
++ [一、结构](#一结构)
++ [二、API文档](#二API文档)
 
 ## 一、结构
 ```bash
