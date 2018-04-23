@@ -6,9 +6,9 @@ import time
 import datetime
 
 
-def format_md5(obj):
+def format_md5(s: str):
     parser = md5()
-    parser.update(obj.encode('utf-8'))
+    parser.update(s.encode('utf-8'))
     return parser.hexdigest()
 
 
@@ -17,19 +17,19 @@ def random_password():
     return format_md5(str(seed))
 
 
-def now(stamp=True, format_type="%Y-%m-%d %H:%M:%S"):
+def now(length=13, stamp=True, format_type="%Y-%m-%d %H:%M:%S"):
     if stamp:
-        return int(''.join(str(time.time()).split('.'))[:13])
+        return int(''.join(str(time.time()).split('.'))[:length])
 
     return time.strftime(format_type)
 
 
-def base64_decode_dict(obj):
-    return json.loads(base64.decodebytes(obj if isinstance(obj, bytes) else obj.encode()).decode())
+def base64_decode_dict(s):
+    return json.loads(base64.decodebytes(s if isinstance(s, bytes) else s.encode()).decode())
 
 
-def base64_encode_dict(obj):
-    return base64.encodebytes(json.dumps(obj).encode()).decode()
+def base64_encode_dict(s):
+    return base64.encodebytes(json.dumps(s).encode()).decode()
 
 
 def convert_timestamp(date, format_type="%Y-%m-%d %H:%M:%S"):
