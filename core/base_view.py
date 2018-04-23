@@ -5,7 +5,14 @@ from flask.views import View
 
 from core.dbconnector import DBResult
 
-from config import GAP, GET, POST, PUT, DELETE, METHOD_ALL, CROSS_ADDR
+from config import CROSS_ADDR
+
+GET = ['GET']
+POST = ['POST']
+DELETE = ['DELETE']
+PUT = ['PUT']
+GAP = GET + POST
+METHOD_ALL = GAP + PUT + DELETE
 
 
 def capture_error(func):
@@ -71,7 +78,8 @@ class __SimpleView(View):
             'GET': self.get,
             'POST': self.post,
             'PUT': self.put,
-            'DELETE': self.delete
+            'DELETE': self.delete,
+            'OPTIONS': self.options,
         }
 
         if request.method in self.methods:
@@ -91,6 +99,9 @@ class __SimpleView(View):
     def delete(self, *args, **kwargs):
         pass
 
+    def options(self, *args, **kwargs):
+        return self.success()
+
     def get_json(self):
         if self.request.data:
             return self.json.loads(self.request.data.decode())
@@ -109,8 +120,8 @@ class __SimpleView(View):
     def get_list(self, arg):
         return self.request.form.getlist(arg)
 
-    def require_login(self):
-        return self.response('permission')
+    def require_login(self, data=None):
+        return self.response('permission', data)
 
     def response(self, kind, data=None):
         ret = {'result': kind}
@@ -149,14 +160,14 @@ class GetView(__SimpleView):
     methods = GET
 
     def get(self, *args, **kwargs):
-        raise NotImplemented
+        raise NotImplementedError
 
 
 class PostView(__SimpleView):
     methods = POST
 
     def post(self, *args, **kwargs):
-        raise NotImplemented
+        raise NotImplementedError
 
 
 class PutView(__SimpleView):
