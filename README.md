@@ -21,38 +21,6 @@
 │   ├── base_url.py         # URL与视图映射基类
 │   ├── base_view.py        # 视图基类
 │   ├── dbconnector         # Mysql ORM 对象模块目录
-│   │   ├── __init__.py
-│   │   ├── conditions.py   # ORM 条件对象
-│   │   ├── joins.py        # ORM 条件关联对象，如 AND、OR
-│   │   └── models.py       # ORM 对象
-│   ├── functions.py        # 公用函数方法
-│   └── init_project.py     # 蓝图初始化模块
-├── init.py
-├── model                   # ORM 对象目录
-│   └── __init__.py
-├── requirements.txt        # 依赖清单
-├── static                  # 静态资源目录
-├── templates               # HTML 页面目录
-│   └── index.html
-├── tornado.py              # Tornaado 入口
-└── wsgi.py                 # WSGI 入口
-```
-
-## 一、结构
-```bash
-.
-├── README.md
-├── app.py                  # 程序入口
-├── blueprint               # 蓝图目录
-│   └── __init__.py
-├── config.py               # 配置文件
-├── core                    # 核心模块
-│   ├── __init__.py
-│   ├── base_model.py       # Mysql ORM 对象基类
-│   ├── base_print.py       # 蓝图基类
-│   ├── base_url.py         # URL与视图映射基类
-│   ├── base_view.py        # 视图基类
-│   ├── dbconnector         # Mysql ORM 对象模块目录
 │   │   ├── __init__.py 
 │   │   ├── conditions.py   # ORM 条件对象
 │   │   ├── joins.py        # ORM 条件关联对象，如 AND、OR
