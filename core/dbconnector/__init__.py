@@ -1,5 +1,9 @@
+import sqlite3
 import pymysql
 from time import ctime
+
+ISALITE_MYSQL = 1
+ISALITE_SQLITE = 2
 
 
 # 数据库返回结果对象
@@ -27,7 +31,55 @@ class DBResult:
         return self.index_of(-1)
 
     @staticmethod
-    def capture(func):
+    def print_debug_info(obj, sql, ret):
+        if obj.debug:
+            print('\033[00;37m/ \033[01;35mSql Statement', sql)
+            print('\033[00;37m/ \033[01;31mError:', ret.error) if ret.error is not None else print(
+                '\033[00;37m/ \033[01;32mError:', ret.error)
+            print('\033[00;37m/ \033[01;33mRows:', ret.rows)
+            print('\033[00;37m/ \033[01;36mResult:', ret.result, '\033[00;37m\n')
+
+    @staticmethod
+    def capture_sqlite(func):
+        def decorator(*args, **options):
+            # 实例化
+            ret = DBResult()
+
+            cursor = args[0].conn.cursor()
+
+            options['cursor'] = cursor
+
+            # 捕获异常
+            try:
+                # 为 DBResult 对象的 rows 和 result 成员赋值
+                ret.rows, ret.result = func(*args, **options)
+
+                # 关闭游标
+                cursor.close()
+
+                # 修改执行状态为 True 表示成功
+                ret.suc = True
+
+                if options.get('commit', False):
+                    args[0].conn.commit()
+
+            except Exception as e:
+                # 如果捕获到异常，将异常放进 DBResult 对象的 error 属性中
+                ret.error = e
+
+                if options.get('commit', False):
+                    args[0].conn.rollback()
+
+            DBResult.print_debug_info(args[0], options['sql'], ret)
+
+            # 返回 DBResult 对象
+            return ret
+
+        # 返回 decorator 方法，其实就相当于返回 DBResult 对象
+        return decorator
+
+    @staticmethod
+    def capture_mysql(func):
         def decorator(*args, **options):
             # 实例化
             ret = DBResult()
@@ -44,12 +96,7 @@ class DBResult:
                 ret.error = e
             # 返回 DBResult 对象
 
-            if args[0].debug:
-                print('\033[00;37m/ \033[01;35mSql Statement', args[1])
-                print('\033[00;37m/ \033[01;31mError:', ret.error) if ret.error is not None else print(
-                    '\033[00;37m/ \033[01;32mError:', ret.error)
-                print('\033[00;37m/ \033[01;33mRows:', ret.rows)
-                print('\033[00;37m/ \033[01;36mResult:', ret.result, '\033[00;37m\n')
+            DBResult.print_debug_info(args[0], options['sql'], ret)
 
             return ret
 
@@ -67,9 +114,27 @@ class DBResult:
 
 # 数据库模块
 class BaseDB:
-    # 实例对象初始化方法
-    def __init__(self, user, password, database='', host='127.0.0.1', port=3306, charset='utf8',
-                 cursor_class=pymysql.cursors.DictCursor, debug=False):
+    # 实例对象初始 方法
+    def __init__(self, db_type):
+        SQL_ENGINE_MAP = {
+            ISALITE_SQLITE: self.__init_sqlite,
+            ISALITE_MYSQL: self.__init_mysql
+        }
+
+        self.init = SQL_ENGINE_MAP[db_type]
+
+    def __init_sqlite(self, database='', debug=False):
+        self.database = database  # 选择的数据库
+        self.connect = self.connect_sqlite
+        self.conn = self.connect()  # 数据库连接对象
+        self.conn.row_factory = BaseDB.dict_factory
+        self.debug = debug  # 是否开启调试模式
+        self.execute = self.execute_sqlite
+
+        return self
+
+    def __init_mysql(self, user, password, database='', host='127.0.0.1', port=3306, charset='utf8',
+                     cursor_class=pymysql.cursors.DictCursor, debug=False):
         self.user = user  # 连接用户
         self.password = password  # 连接用户密码
         self.database = database  # 选择的数据库
@@ -77,27 +142,75 @@ class BaseDB:
         self.port = port  # 端口号，默认 3306
         self.charset = charset  # 数据库编码，默认 UTF-8
         self.cursor_class = cursor_class  # 数据库游标类型，默认为 DictCursor，返回的每一行数据集都是个字典
-        self.conn = self.connect()  # 数据库连接对象
         self.debug = debug  # 是否开启调试模式
+        self.execute = self.execute_mysql
+        self.connect = self.connect_mysql
+        self.conn = self.connect()  # 数据库连接对象
+
+        return self
+
+    @staticmethod
+    def dict_factory(cursor, row):
+        d = {}
+        for idx, col in enumerate(cursor.description):
+            d[col[0]] = row[idx]
+        return d
 
     # 建立连接
-    def connect(self):
+    def connect_mysql(self):
         # 返回一个数据库连接对象
         return pymysql.connect(host=self.host, user=self.user, port=self.port,
                                passwd=self.password, db=self.database,
                                charset=self.charset, connect_timeout=10,
                                cursorclass=self.cursor_class)
 
+    # 建立连接
+    def connect_sqlite(self):
+        # 返回一个数据库连接对象
+        return sqlite3.connect(self.database, check_same_thread=False)
+
     # 断开连接
     def close(self):
         # 关闭数据库连接
         self.conn.close()
 
-    # 数据操作，增，删，改，查
-    @DBResult.capture
-    def execute(self, sql, params=None):
+    # 数 操作，增，删，改，查
+    @DBResult.capture_sqlite
+    def execute_sqlite(self, **options):
 
-        sql = sql.replace('None', 'NULL')
+        sql = options['sql'].replace('None', 'NULL')
+
+        if not options['cursor']:
+            cursor = self.conn.cursor()
+        else:
+            cursor = options['cursor']
+
+        params = options.get('params', None)
+
+        # 执行语句并获取影响条目数量
+        cursor.execute(sql, params) if params and isinstance(params, dict) else cursor.execute(sql)
+        rows = cursor.rowcount
+
+        # 获取执行结果
+        if 'INSERT' in sql or 'insert' in sql:
+            result = cursor.lastrowid
+        else:
+            result = cursor.fetchall()
+
+        ######################
+        # 关闭数据重连，不要问我为什么要关闭，都是血与泪的教训，防止上一个连接中有未清空读完的数据导致下次复用这个连接会发生一些不可描述的事情
+        ######################
+        # self.close()
+
+        # 返回影响条目数量和执行结果
+        return rows, result
+
+    @DBResult.capture_mysql
+    def execute_mysql(self, **options):
+
+        sql = options['sql'].replace('None', 'NULL')
+
+        params = options.get('params', None)
 
         # 超时重连 MySQL
         try:
@@ -123,7 +236,11 @@ class BaseDB:
             rows = cursor.execute(sql, params) if params and isinstance(params, dict) else cursor.execute(sql)
 
             # 获取执行结果
-            result = cursor.fetchall()
+            # 获取执行结果
+            if 'INSERT' in sql or 'insert' in sql:
+                result = self.conn.insert_id()
+            else:
+                result = cursor.fetchall()
 
         ######################
         # 关闭数据重连，不要问我为什么要关闭，都是血与泪的教训，防止上一个连接中有未清空读完的数据导致下次复用这个连接会发生一些不可描述的事情
@@ -132,37 +249,3 @@ class BaseDB:
 
         # 返回影响条目数量和执行结果
         return rows, result
-
-    # 插入数据并获取最新插入的数据标识，也就是主键索引 ID 字段
-    def insert(self, sql, params=None):
-        ret = self.execute(sql, params)
-        ret.result = self.conn.insert_id()
-
-        return ret
-
-    # 存储过程调用
-    @DBResult.capture
-    def process(self, func, params=None):
-        # 获取数据库连接对象上下文
-        with self.conn as cursor:
-            # 如果参数不为空并且时 Dict 类型时，把存储过程名与参数一起传入 callproc 中调用，反之直接调用 callproc
-            rows = cursor.callproc(func, params) if params and isinstance(params, dict) else cursor.callproc(func)
-
-            # 获取存储过程执行结果
-            result = cursor.fetchall()
-
-        return rows, result
-
-    # 创建数据库
-    def create_db(self, db_name, db_charset='utf8'):
-        return self.execute('CREATE DATABASE %s DEFAULT CHARACTER SET %s' % (db_name, db_charset))
-
-    # 删除数据库
-    def drop_db(self, db_name):
-        return self.execute('DROP DATABASE %s' % db_name)
-
-    # 选择数据库
-    @DBResult.capture
-    def choose_db(self, db_name):
-        self.conn.select_db(db_name)
-        return None, None
