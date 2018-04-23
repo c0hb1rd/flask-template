@@ -10,10 +10,11 @@ class BaseCondiction:
         if isinstance(self.case, str):
             if self.is_format:
                 case = '"{case}"'.format(case=case)
+                self.field = '`' + self.field + '`'
             else:
                 case = '{case}'.format(case=case)
 
-        return '`{field}` {symbol} {case}'.format(field=self.field, symbol=self.symbol, case=case)
+        return '{field} {symbol} {case}'.format(field=self.field, symbol=self.symbol, case=case)
 
 
 class IsCondition(BaseCondiction):

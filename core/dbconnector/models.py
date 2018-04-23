@@ -1,5 +1,5 @@
 from core.dbconnector.conditions import BaseCondiction
-from core.dbconnector.joins import BaseJoin
+from core.dbconnector.joins import ConditionJoin, Join
 
 
 def wait(f):
@@ -7,13 +7,13 @@ def wait(f):
         while args[0].isLock():
             pass
         return f(*args, **kwargs)
+
     return decorator
 
 
 class Model:
-    def __init__(self, table, field, db_conn):
+    def __init__(self, table, db_conn):
         self.table = table
-        self.field = field
         self.db = db_conn
         self.mutex = 0
 
@@ -22,20 +22,36 @@ class Model:
 
     def unlock(self):
         self.mutex = 0
-        
+
     def isLock(self):
         return self.mutex
 
     @wait
-    def search(self, conditions=None, fields=None, order: dict = None, group=None, limit=None, is_format_filed=True):
-        sql = '''SELECT {fields} FROM `{table}`'''.format(fields='*' if not fields else ", ".join(
+    def search(self, conditions=None, joins=None, fields=None, order: dict = None, group=None, limit=None,
+               is_format_filed=True,
+               total=True, alias=None):
+
+        sql = '''SELECT {fields} FROM {table}'''.format(fields='*' if not fields else ", ".join(
             ['`' + field + '`' if field[0] is not '`' else field for field in fields]
             if is_format_filed else
             [field for field in fields]
-        ), table=self.table)
+        ), table=('`' + self.table + '`') if is_format_filed else self.table)
+
+        if alias:
+            sql += ' AS ' + alias
+
+        if joins:
+            if not isinstance(joins, list):
+                joins = [joins]
+
+            for join in joins:
+                if not isinstance(join, Join):
+                    raise TypeError('Must Be Join Class')
+
+                sql += join.format()
 
         if conditions:
-            if not isinstance(conditions, BaseJoin) and not isinstance(conditions, BaseCondiction):
+            if not isinstance(conditions, ConditionJoin) and not isinstance(conditions, BaseCondiction):
                 raise TypeError('Must Be Condition Class')
             conditions = conditions.format()
             sql += ' WHERE ' + conditions
@@ -46,10 +62,11 @@ class Model:
             sql += statement
 
         if order:
-            field = ", ".join(order['fields'])
+            field = ", ".join(['`' + field + '`' for field in order['fields']]) if is_format_filed else ", ".join(
+                order['fields'])
             sort = order.get('sort', 'ASC')
 
-            statement = " ORDER BY `{field}` {sort}".format(field=field, sort=sort)
+            statement = " ORDER BY {field} {sort}".format(field=field, sort=sort)
             sql += statement
 
         if limit:
@@ -60,17 +77,17 @@ class Model:
         sql = sql.replace("None", "NULL")
 
         self.lock()
-        ret = self.db.execute(sql)
+        ret = self.db.execute(sql=sql)
         self.unlock()
 
-        if ret.suc:
-            ret.rows = self.__total(conditions)
+        if ret.suc and total:
+            ret.rows = self.total(conditions)
 
         return ret
 
     @wait
     def update(self, conditions: BaseCondiction or BaseJoin, **options):
-        if not isinstance(conditions, BaseCondiction) and not isinstance(conditions, BaseJoin):
+        if not isinstance(conditions, BaseCondiction) and not isinstance(conditions, ConditionJoin):
             raise TypeError('Must Be Condition Class')
 
         values = []
@@ -86,7 +103,7 @@ class Model:
                                                                         conditions=conditions.format())
 
         self.lock()
-        ret = self.db.execute(sql)
+        ret = self.db.execute(sql=sql)
         self.unlock()
 
         return ret
@@ -96,14 +113,14 @@ class Model:
         if not conditions:
             statement = '''DELETE FROM `{table}`'''.format(table=self.table)
         else:
-            if not isinstance(conditions, BaseCondiction) and not isinstance(conditions, BaseJoin):
+            if not isinstance(conditions, BaseCondiction) and not isinstance(conditions, ConditionJoin):
                 raise TypeError('Must Be Condition Class')
 
             statement = '''DELETE FROM `{table}` WHERE {conditions}'''.format(table=self.table,
                                                                               conditions=conditions.format())
 
         self.lock()
-        ret = self.db.execute(statement)
+        ret = self.db.execute(sql=statement)
         self.unlock()
 
         return ret
@@ -118,7 +135,8 @@ class Model:
 
         for key, value in options.items():
             key_tmp.append('`' + key + '`')
-            value_tmp.append(str(value) if isinstance(value, int) or value is None else "'%s'" % str(value).replace("'", '"'))
+            value_tmp.append(
+                str(value) if isinstance(value, int) or value is None else "'%s'" % str(value).replace("'", '"'))
 
         statement = '''INSERT INTO `{table}`({key_tmp}) VALUES({value_tmp})'''.format(
             table=self.table,
@@ -129,13 +147,14 @@ class Model:
         statement = statement.replace("None", "NULL")
 
         self.lock()
-        ret = self.db.insert(statement)
+        ret = self.db.insert(sql=statement)
         self.unlock()
 
         return ret
 
-    def __total(self, conditions=None):
-        sql = '''SELECT COUNT(id) FROM `{table}`'''.format(table=self.table)
+    def total(self, conditions=None, primary_key='id'):
+        sql = '''SELECT COUNT(`{primary_key}`) FROM `{table}`'''.format(primary_key=primary_key, table=self.table)
         if conditions:
             sql += ' WHERE ' + conditions
-        return self.db.execute(sql).result[0]['COUNT(id)']
+        return self.db.execute(sql=sql).result[0]['''COUNT(`{primary_key}`)'''.format(primary_key=primary_key)]
+
