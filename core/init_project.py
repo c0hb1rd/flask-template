@@ -6,7 +6,7 @@ def create_dir(directory):
 
 
 def create_file(path):
-    blueprint, dirname, name = path.split('/')[-3:]
+    blueprint, dirname, name = path.split(os.sep)[-3:]
 
     f = open(path, 'w')
 
