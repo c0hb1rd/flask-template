@@ -5,8 +5,6 @@ from flask.views import View
 
 from core.dbconnector import DBResult
 
-from config import CROSS_ADDR
-
 GET = ['GET']
 POST = ['POST']
 DELETE = ['DELETE']
@@ -41,7 +39,7 @@ def capture_log(func):
 
 def alter_permission(*args, **options):
     ret = jsonify({'result': 'permission', 'info': 'Not Permission'})
-    ret.headers['Access-Control-Allow-Origin'] = CROSS_ADDR
+    ret.headers['Access-Control-Allow-Origin'] = request.headers.get("Origin")
     ret.headers['Access-Control-Allow-Methods'] = '*'
     ret.headers['Access-Control-Allow-Headers'] = 'x-requested-with,content-type'
     ret.headers['Access-Control-Allow-Credentials'] = 'true'
@@ -130,7 +128,7 @@ class __SimpleView(View):
             ret.update(data)
 
         ret = jsonify(ret)
-        ret.headers['Access-Control-Allow-Origin'] = CROSS_ADDR
+        ret.headers['Access-Control-Allow-Origin'] = self.request.headers.get("Origin")
         ret.headers['Access-Control-Allow-Methods'] = '*'
         ret.headers['Access-Control-Allow-Headers'] = 'x-requested-with,content-type'
         ret.headers['Access-Control-Allow-Credentials'] = 'true'
