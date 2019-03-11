@@ -1,0 +1,16 @@
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8080,
+    "title": ""
+  },
+  "database": {
+    "kind": "mysql",
+    "host": "127.0.0.1",
+    "port": 3306,
+    "user": "root",
+    "password": "",
+    "database_name": "",
+    "charset": "utf8"
+  }
+}
