@@ -1,5 +1,3 @@
 flask
 tornado
 pymysql
-wsgi
-
